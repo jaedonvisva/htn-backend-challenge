@@ -140,6 +140,7 @@ def get_scan_statistics():
         SELECT activity_name, activity_category, COUNT(*) as frequency 
         FROM scans
     """
+    
     conditions = []
     values = []
 
@@ -147,14 +148,17 @@ def get_scan_statistics():
         conditions.append("activity_category = ?")
         values.append(activity_category)
 
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+
     query += " GROUP BY activity_name, activity_category"
 
     having_conditions = []
-    if min_frequency:
+    if min_frequency is not None:
         having_conditions.append("COUNT(*) >= ?")
         values.append(min_frequency)
-    
-    if max_frequency:
+
+    if max_frequency is not None:
         having_conditions.append("COUNT(*) <= ?")
         values.append(max_frequency)
 
@@ -163,10 +167,15 @@ def get_scan_statistics():
 
     query += " ORDER BY frequency DESC"
 
-    scans = conn.execute(query, values).fetchall()
+    print("Final Query:", query)
+    print("Values:", values)
+
+    scans = conn.execute(query, tuple(values)).fetchall()
     conn.close()
 
     return jsonify([dict(scan) for scan in scans])
+
+
 
 
 if __name__ == "__main__":
