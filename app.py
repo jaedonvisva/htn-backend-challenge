@@ -175,7 +175,55 @@ def get_scan_statistics():
 
     return jsonify([dict(scan) for scan in scans])
 
+# ---------------- Clustered Scans ----------------
+@app.route("/clustered-scans", methods=["GET"])
+def clustered_scans():
+    conn = get_db_connection()
 
+    activity = request.args.get("activity")
+    start_time = request.args.get("start_time")
+    end_time = request.args.get("end_time")
+    time_unit = request.args.get("time_unit", default="hour")
+
+    time_formats = {
+        "hour": "%Y-%m-%d %H:00:00",
+        "minute": "%Y-%m-%d %H:%M:00"
+    }
+
+    if time_unit not in time_formats:
+        return jsonify({"error": "Invalid time_unit"}), 400
+    
+    query = f"""
+        SELECT strftime('{time_formats[time_unit]}', REPLACE(scanned_at, 'T', ' ')) AS time_period, 
+               COUNT(*) as scan_count,
+               activity_name
+        FROM scans
+    """
+
+    conditions = [] 
+    values = []
+
+    if activity:
+        conditions.append("activity_name = ?")
+        values.append(activity)
+    
+    if start_time:
+        conditions.append("scanned_at >= ?")
+        values.append(start_time)
+    
+    if end_time:
+        conditions.append("scanned_at <= ?")
+        values.append(end_time)
+    
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    
+    query += f" GROUP BY time_period ORDER BY time_period"
+
+    scans = conn.execute(query, tuple(values)).fetchall()
+    conn.close()
+
+    return jsonify([dict(scan) for scan in scans])
 
 
 if __name__ == "__main__":
