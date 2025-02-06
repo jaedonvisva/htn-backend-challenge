@@ -276,6 +276,50 @@ def get_checkins():
 
     return jsonify([dict(checkin) for checkin in checkins])
 
+# ---------------- Scan User Endpoint ----------------
+@app.route("/friendly-scan", methods=["POST"])
+def friendly_scan():
+    conn = get_db_connection()
+
+    data = request.get_json()
+    scanner_badge_code = data.get("scanner_badge_code")
+    scanned_badge_code = data.get("scanned_badge_code")
+
+    if not scanner_badge_code or not scanned_badge_code:
+        conn.close()
+        return jsonify({"error": "Missing scanner_badge_code or scanned_badge_code"}), 400
+    
+    pair = conn.execute("SELECT * FROM friends WHERE scanner_badge_code = ? AND scanned_badge_code = ?", (scanner_badge_code,scanned_badge_code)).fetchone()
+
+    if pair:
+        conn.close()
+        return jsonify({"error": "Friendship already exists"}), 400
+
+    scanned_at = datetime.now(timezone.utc).isoformat()
+
+    conn.execute("""
+        INSERT INTO friends (scanner_badge_code, scanned_badge_code, scanned_at)
+        VALUES (?, ?, ?)
+    """, (scanner_badge_code, scanned_badge_code, scanned_at))
+
+    conn.commit()
+    conn.close()
+
+    return jsonify({
+        "scanner_badge_code": scanner_badge_code,
+        "scanned_badge_code": scanned_badge_code,
+        "scanned_at": scanned_at
+    }), 201
+
+# ---------------- Get Friends Endpoint ----------------
+@app.route("/friends/<string:badge_code>", methods=["GET"])
+def get_friends(badge_code):
+    conn = get_db_connection()
+
+    friends = conn.execute("SELECT scanned_badge_code, scanned_at FROM friends WHERE scanner_badge_code = ?", (badge_code,)).fetchall()
+    conn.close()
+
+    return jsonify([dict(friend) for friend in friends])
 
 
 if __name__ == "__main__":

@@ -43,6 +43,18 @@ cursor.execute("""
 );
 """)
 
+cursor.execute("""
+                CREATE TABLE IF NOT EXISTS friends (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+               scanner_badge_code TEXT,
+               scanned_badge_code TEXT,
+               scanned_at TEXT,
+                FOREIGN KEY (scanner_badge_code) REFERENCES users (badge_code)
+    );
+""")
+
+
+
 # Insert data into tables
 for entry in data:
     name = entry["name"]
