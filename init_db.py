@@ -33,6 +33,16 @@ CREATE TABLE IF NOT EXISTS scans (
 );
 """)
 
+cursor.execute("""
+               CREATE TABLE IF NOT EXISTS checkins (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    badge_code TEXT,
+    checkin_time TEXT,
+    checkout_time TEXT,
+    FOREIGN KEY (badge_code) REFERENCES users (badge_code)
+);
+""")
+
 # Insert data into tables
 for entry in data:
     name = entry["name"]

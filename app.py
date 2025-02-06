@@ -225,6 +225,58 @@ def clustered_scans():
 
     return jsonify([dict(scan) for scan in scans])
 
+# ---------------- Checkin Endpoint ----------------
+@app.route("/checkin/<string:badge_code>", methods=["POST"])
+def checkin(badge_code):
+    conn = get_db_connection()
+
+    user = conn.execute("SELECT * FROM users WHERE badge_code = ?", (badge_code,)).fetchone()
+    if not user:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+    
+    checkin_time = datetime.now(timezone.utc).isoformat()
+
+    conn.execute("""
+                 INSERT INTO checkins (badge_code, checkin_time)
+                 VALUES (?, ?)
+                 """, (badge_code, checkin_time))
+    
+    conn.commit()
+    conn.close()
+    return jsonify({"badge_code": badge_code, "checkin_time": checkin_time})
+
+# ---------------- Checkout Endpoint ----------------
+@app.route("/checkout/<string:badge_code>", methods=["POST"])
+def checkout(badge_code):
+    conn = get_db_connection()
+
+    user = conn.execute("SELECT * FROM users WHERE badge_code = ?", (badge_code,)).fetchone()
+    if not user:
+        conn.close()
+        return jsonify({"error": "User not found"}), 404
+
+    checkout_time = datetime.now(timezone.utc).isoformat()
+
+    conn.execute("""
+                 UPDATE checkins SET checkout_time = ? WHERE badge_code = ? AND checkout_time IS NULL
+                 """, (checkout_time, badge_code))
+    
+    conn.commit()
+    conn.close()
+    return jsonify({"badge_code": badge_code, "checkout_time": checkout_time})
+
+# ---------------- Get Checkins Endpoint ----------------
+@app.route("/checkins", methods=["GET"])
+def get_checkins():
+    conn = get_db_connection()
+
+    checkins = conn.execute("SELECT * FROM checkins").fetchall()
+    conn.close()
+
+    return jsonify([dict(checkin) for checkin in checkins])
+
+
 
 if __name__ == "__main__":
     app.run(debug=True)
